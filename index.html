@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oilaviy Shajara</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #eef3ee;
+      --card: #ffffff;
+      --primary: #1f6f43;
+      --primary-dark: #155230;
+      --accent: #e8f3ec;
+      --text: #1c241e;
+      --muted: #5c6b60;
+      --border: #d0ddd3;
+      --danger: #c62828;
+      --warn: #b26a00;
+      --line: #95a79b;
+      --male-bg: #e8f1fa;
+      --male-border: #6b9ac4;
+      --female-bg: #f9ebee;
+      --female-border: #c98a97;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff; padding: 12px 16px; display: flex; justify-content: space-between;
+      align-items: center; position: sticky; top: 0; z-index: 30; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    header h1 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+    .menu-btn {
+      background: rgba(255,255,255,0.16); color: #fff; border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 10px; padding: 6px 12px; font-size: 20px; line-height: 1; cursor: pointer;
+    }
+    .drawer-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40;
+      display: flex; justify-content: flex-end;
+    }
+    .drawer {
+      background: #fff; width: 270px; max-width: 82vw; height: 100%; padding: 18px 14px;
+      display: flex; flex-direction: column; gap: 8px; box-shadow: -4px 0 16px rgba(0,0,0,.15);
+    }
+    .drawer button {
+      text-align: left; background: var(--accent); color: var(--primary-dark);
+      border: 1px solid var(--border); padding: 12px 14px; border-radius: 10px; font-size: 15px;
+    }
+    .drawer button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .drawer button.danger { background: #ffebee; color: var(--danger); border-color: #ffcdd2; margin-top: auto; }
+
+    .container { max-width: 960px; margin: 14px auto; padding: 0 12px 60px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 16px; margin-bottom: 14px; box-shadow: 0 3px 10px rgba(0,0,0,.04);
+    }
+    .tree-canvas {
+      background: radial-gradient(circle at top, #f7faf7 0%, #eaf0eb 100%);
+      border: 1px solid var(--border); border-radius: 18px; padding: 16px 10px 22px; margin-bottom: 14px;
+    }
+    h2, h3 { margin-top: 0; color: var(--primary-dark); }
+    label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; color: var(--muted); }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+      font-size: 15px; background: #fff; color: var(--text);
+    }
+    input:disabled, select:disabled, textarea:disabled {
+      background: #f5f7f5; color: #333; opacity: 1; border-color: #e2e8e4;
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    button {
+      background: var(--primary); color: #fff; border: none; border-radius: 10px;
+      padding: 9px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: var(--primary-dark); }
+    button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    button.danger { background: var(--danger); color: #fff; }
+    button.small { padding: 6px 11px; font-size: 13px; }
+    .hidden { display: none !important; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+
+    .nav-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .family-header { text-align: center; margin-bottom: 12px; }
+    .family-header .sub { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+    .family-header .title { font-size: 22px; font-weight: 800; color: #111; margin-top: 2px; }
+
+    /* ER-XOTIN YONMA-YON */
+    .parents-row {
+      display: flex; justify-content: center; align-items: stretch; gap: 0;
+      flex-wrap: nowrap; width: 100%;
+    }
+    .couple-connector {
+      width: 16px; height: 2px; background: var(--line); align-self: center; flex-shrink: 0;
+    }
+
+    /* SHAXS KATAKLARI */
+    .person-box {
+      width: 152px; max-width: 45vw; min-height: 82px; border-radius: 14px; padding: 10px 8px;
+      text-align: center; cursor: pointer; transition: transform .15s, box-shadow .15s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      position: relative; box-shadow: 0 2px 6px rgba(0,0,0,.05);
+    }
+    .person-box:hover { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(0,0,0,.1); }
+    .person-box.male { background: var(--male-bg); border: 2px solid var(--male-border); }
+    .person-box.female { background: var(--female-bg); border: 2px solid var(--female-border); }
+    .person-box.selected { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+    .avatar {
+      width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+      border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.15); margin-bottom: 6px;
+    }
+    .p-name { font-weight: 700; font-size: 14px; color: #111; line-height: 1.25; word-break: break-word; }
+    .p-years { font-size: 11px; color: var(--muted); margin-top: 4px; font-weight: 600; }
+
+    /* DARAXT CHIZIQLARI */
+    .v-line { width: 2px; height: 22px; background: var(--line); margin: 0 auto; }
+    .children-wrap { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; position: relative; padding-top: 14px; }
+    .children-wrap::before {
+      content: ""; position: absolute; top: 0; left: 16%; right: 16%; height: 2px; background: var(--line);
+    }
+    .children-wrap.single::before { display: none; }
+    .child-col { display: flex; flex-direction: column; align-items: center; position: relative; }
+    .child-col::before {
+      content: ""; width: 2px; height: 14px; background: var(--line); position: absolute; top: -14px;
+    }
+
+    .list-item {
+      border-bottom: 1px solid var(--border); padding: 10px 0;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .badge {
+      display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 12px; font-weight: 600;
+      background: var(--accent); color: var(--primary-dark);
+    }
+    .badge.pending { background: #fff3e0; color: var(--warn); }
+    .badge.rejected { background: #ffebee; color: var(--danger); }
+    .muted { color: var(--muted); font-size: 13px; }
+    .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
+    .media-grid img, .media-grid video { width: 100%; height: 105px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+    .msg { padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; font-size: 14px; background: #e8f5e9; color: #1b5e20; }
+    .msg.err { background: #ffebee; color: #b71c1c; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .avatar.ini{display:flex;align-items:center;justify-content:center;background:var(--accent);color:var(--primary-dark);font-weight:800;font-size:18px}
+    .kid-badge{font-size:11px;color:var(--primary-dark);background:var(--accent);border-radius:99px;padding:2px 8px;margin-top:5px;font-weight:600}
+    .kid-badge.unk{background:#eee;color:#777;font-size:14px;padding:0 10px}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+    .chip{background:var(--accent);color:var(--primary-dark);border:1px solid var(--border);font-size:12px;padding:5px 10px;border-radius:99px}
+    .chip:hover{background:var(--primary);color:#fff}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+    .modal{background:#fff;border-radius:16px;padding:18px;width:100%;max-width:380px}
+    #treeSearch{margin-bottom:12px}
+    .person-box{touch-action:manipulation}
+    @media print{header,.nav-bar,#treeSearch,.drawer-bg,#cabinetCard,.tree-canvas>p{display:none!important}.tree-canvas{border:none;background:#fff}}
+    .tree-scroll{overflow-x:auto;padding-bottom:12px}
+    .trunk{display:flex;flex-direction:column;align-items:center;min-width:max-content;margin:0 auto;padding:0 8px}
+    .children{display:flex;justify-content:center;position:relative;padding-top:24px}
+    .children:before{content:"";position:absolute;top:0;left:50%;height:24px;border-left:2px solid var(--line)}
+    .branch{display:flex;flex-direction:column;align-items:center;position:relative;padding:14px 7px 0}
+    .branch:before{content:"";position:absolute;top:0;left:0;right:0;border-top:2px solid var(--line)}
+    .branch:first-child:before{left:50%}.branch:last-child:before{right:50%}
+    .branch:after{content:"";position:absolute;top:0;left:50%;height:14px;border-left:2px solid var(--line)}
+    .branch:only-child:before{display:none}
+    .parents-row .person-box,.branch .person-box{width:150px;max-width:none}
+    .person-box.add{background:#fff;border:2px dashed var(--primary);color:var(--primary);font-weight:700;font-size:13px;min-height:64px}
+    .person-box .x{position:absolute;top:3px;right:5px;font-size:12px;color:var(--danger);background:#fff;border-radius:50%;width:20px;height:20px;line-height:20px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+    .tg-day{text-align:center;margin:14px 0 8px}
+    .tg-day span{background:rgba(0,0,0,.45);color:#fff;font-size:12px;padding:3px 12px;border-radius:99px}
+    .tg-msg{background:#fff;border:1px solid var(--border);border-radius:16px 16px 16px 4px;padding:10px 12px;margin:0 0 10px;max-width:520px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+    .tg-msg .meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#888;margin-top:6px}
+    .tg-msg .acts{display:flex;gap:6px;margin-top:8px}
+    #adminUsersList,#adminRequestsList{background:#eef2ee;border-radius:12px;padding:6px 10px}
+  </style>
+</head>
+<body>
+<header>
+  <h1 onclick="goHome()" style="cursor:pointer;" title="Bosh sahifa">🌳 Oilaviy shajara</h1>
+  <div id="userHeader" class="hidden" style="display:flex;align-items:center;gap:10px;">
+    <span id="headerName" style="font-size:13px;font-weight:600;"></span>
+    <button class="menu-btn" onclick="toggleDrawer(true)">☰</button>
+  </div>
+</header>
+
+<div id="navDrawer" class="drawer-bg hidden" onclick="if(event.target===this) toggleDrawer(false)">
+  <div class="drawer">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <strong style="color:var(--primary-dark);">Menyu</strong>
+      <button class="secondary small" onclick="toggleDrawer(false)">✕</button>
+    </div>
+    <button id="mTree" class="active" onclick="goTab('tree')">🌳 Shajara daraxti</button>
+    <button id="mPeople" onclick="goTab('people')">👥 Barcha a’zolar (<span id="peopleCount">0</span>)</button>
+    <button id="mSuggest" onclick="goTab('suggest')">✏️ O‘zgarish taklif qilish</button>
+    <button id="mAdmin" class="hidden" onclick="goTab('admin')">🛡️ A’zolar va takliflar</button>
+    <button onclick="downloadBackup()">📥 Zaxira nusxa (JSON)</button>
+    <div style="display:flex;gap:6px"><button id="scLat" style="flex:1" onclick="setScript('lat')">Lotin</button><button id="scCyr" class="secondary" style="flex:1" onclick="setScript('cyr')">Кирилл</button></div>
+    <button onclick="downloadGedcom()">📄 GEDCOM (boshqa saytlar uchun)</button>
+    <button onclick="toggleDrawer(false);window.print()">🖨 Chop etish</button>
+    <button class="danger" onclick="logout()">🚪 Chiqish</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="globalMsg" class="msg hidden"></div>
+
+  <!-- 1. KIRISH VA RO'YXATDAN O'TISH -->
+  <div id="authSection" class="card">
+    <div class="tabs">
+      <button id="tabLogin" class="tab active" onclick="switchAuth('login')">Kirish</button>
+      <button id="tabSignup" class="tab" onclick="switchAuth('signup')">Ro‘yxatdan o‘tish</button>
+    </div>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <label>Login (foydalanuvchi nomi)</label>
+      <input type="text" id="loginUser" required />
+      <label>Parol</label>
+      <input type="password" id="loginPass" required />
+      <br><br>
+      <button type="submit" style="width:100%">Tizimga kirish</button>
+    </form>
+    <form id="signupForm" class="hidden" onsubmit="handleSignup(event)">
+      <label>To‘liq ism-sharifingiz (F.I.Sh.) *</label>
+      <input type="text" id="regName" required />
+      <label>Tug‘ilgan yilingiz</label>
+      <input type="text" id="regYear" />
+      <label>Login o‘ylab toping (faqat lotin harflari va raqam) *</label>
+      <input type="text" id="regUser" required />
+      <label>Parol (kamida 6 ta belgi) *</label>
+      <input type="password" id="regPass" required minlength="6" />
+      <br><br>
+      <button type="submit" style="width:100%">Ro‘yxatdan o‘tish</button>
+    </form>
+  </div>
+
+  <!-- 2. KUTILMOQDA EKRANI -->
+  <div id="statusSection" class="card hidden">
+    <h2 id="statusTitle">⏳ Tasdiqlash kutilmoqda</h2>
+    <p id="statusDesc">Arizangiz administratorga yuborildi. Tasdiqlangandan so‘ng oilaviy shajara ochiladi.</p>
+    <p id="rejectReasonBox" class="hidden" style="color:var(--danger);font-weight:600;"></p>
+    <button class="secondary" onclick="initApp()">Holatni qayta tekshirish</button>
+    <button class="secondary" onclick="logout()">🚪 Chiqish (boshqa hisob bilan kirish)</button>
+  </div>
+
+  <!-- 3. ASOSIY ILOVA -->
+  <div id="appSection" class="hidden">
+
+    <!-- SHAJARA DARAXTI VA KABINET -->
+    <div id="viewTree">
+      <div class="tree-canvas">
+        <div class="nav-bar">
+          <button class="secondary small" onclick="goBack()">← Orqaga</button>
+          <button class="secondary small" onclick="goUp()">⬆ Ota-onasi</button>
+          <button class="small" onclick="goRoot()">🏠 Eng boshiga</button>
+          <button id="btnAddChildTop" class="small hidden" onclick="quickAddChild()">+ Farzand qo‘shish</button>
+          <button class="secondary small" onclick="loadAllData()">🔄 Yangilash</button>
+        </div>
+
+        <input list="peopleDL" id="treeSearch" onchange="treeSearchGo(this)" /><datalist id="peopleDL"></datalist>
+        <div id="treeStage">Yuklanmoqda...</div>
+        <p class="muted" style="text-align:center;margin:14px 0 0;">
+          Farzandni bossangiz — uning oilasi ochiladi. Ota yoki onani bossangiz — ular haqidagi ma’lumotlar ochiladi.
+        </p>
+      </div>
+
+      <!-- OILA A'ZOSI KABINETI -->
+      <div id="cabinetCard" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <h3 style="margin:0;">👤 Oila a’zosi kabineti</h3>
+            <span id="cabModeBadge" class="badge">Faqat ko‘rish rejimi</span>
+          </div>
+          <button class="secondary small" onclick="closeCabinet()">✕ Yopish</button>
+        </div>
+
+        <div id="cabRelatives" class="chips"></div>
+        <form id="cabinetForm" onsubmit="saveCabinet(event)">
+          <label>Ism-familiyasi *</label>
+          <input type="text" id="cabName" required />
+
+          <div class="row">
+            <div>
+              <label>Jinsi</label>
+              <select id="cabGender">
+                <option value="male">Erkak</option>
+                <option value="female">Ayol</option>
+              </select>
+            </div>
+            <div>
+              <label>Tug‘ilgan yili</label>
+              <input type="text" id="cabBirth" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Vafot etgan yili</label>
+              <input type="text" id="cabDeath" />
+            </div>
+            <div>
+              <label>Turmush o‘rtog‘ining ismi</label>
+              <input type="text" id="cabSpouse" readonly onclick="openSpouseModal()" style="cursor:pointer;" />
+            </div>
+          </div>
+
+          <label>Qisqacha ma’lumot (Biografiya)</label>
+          <textarea id="cabBio" placeholder="U kishi haqida ma’lumot..."></textarea>
+
+          <div id="adminCabActions" class="hidden" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="submit">💾 Saqlash</button>
+            <button type="button" class="secondary" onclick="quickAddChild()">+ Farzand qo‘shish</button>
+            <button type="button" class="danger" onclick="deleteCurrentPerson()">🗑 O‘chirish</button>
+          </div>
+        </form>
+
+        <hr style="margin:16px 0;border:none;border-top:1px solid var(--border);">
+        <h4 style="margin:0 0 8px;">🖼 Rasm va videolar</h4>
+        <div id="adminMediaUpload" class="hidden" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="file" id="cabMediaFile" accept="image/*,video/*" style="flex:1;" />
+          <button type="button" class="small" onclick="uploadCabinetMedia()">+ Yuklash</button>
+        </div>
+        <div id="cabMediaGrid" class="media-grid"></div>
+      </div>
+    </div>
+
+    <!-- BARCHA A'ZOLAR -->
+    <div id="viewPeople" class="card hidden">
+      <h2>Shajara a’zolari</h2><p id="statsLine" class="muted"></p>
+      <input type="text" id="searchInput" oninput="renderPeopleList()" />
+      <div id="peopleList" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- TAHRIR TAKLIFI -->
+    <div id="viewSuggest" class="card hidden">
+      <h2>Shajaraga o‘zgarish taklif qilish</h2>
+      <p class="muted">Taklifingiz administrator tasdiqlaganidan so‘ng shajaraga qo‘shiladi.</p>
+      <form onsubmit="submitEditRequest(event)">
+        <label>Taklif turi</label>
+        <select id="reqKind" onchange="toggleTargetPerson()">
+          <option value="create">Yangi qarindosh qo‘shish</option>
+          <option value="update">Mavjud shaxsni tahrirlash</option>
+        </select>
+        <div id="targetPersonWrap" class="hidden">
+          <label>Qaysi shaxsni tahrirlaymiz?</label>
+          <select id="reqTargetPerson"></select>
+        </div>
+        <label>To‘liq ism-sharifi *</label>
+        <input type="text" id="reqFullName" required />
+        <div class="row">
+          <div><label>Jinsi</label><select id="reqGender"><option value="male">Erkak</option><option value="female">Ayol</option></select></div>
+          <div><label>Tug‘ilgan yili</label><input type="text" id="reqBirth" /></div>
+        </div>
+        <label>Izoh (kimning farzandi yoki turmush o‘rtog‘i ekanini yozing)</label>
+        <textarea id="reqBio"></textarea><br><br>
+        <button type="submit">Taklifni yuborish</button>
+      </form>
+      <hr style="margin:18px 0;border:none;border-top:1px solid var(--border);">
+      <h3>Mening takliflarim</h3>
+      <div id="myRequestsList"></div>
+    </div>
+
+    <!-- ADMIN TASDIQLASH PANELI -->
+    <div id="viewAdmin" class="hidden">
+      <div style="text-align:right;margin-bottom:10px"><button class="danger small" onclick="clearAdminHistory()">🧹 Murojaatlar tarixini tozalash</button></div>
+      <div class="card"><h2>1. Yangi a’zolarni tasdiqlash</h2><div id="adminUsersList"></div></div>
+      <div class="card"><h2>2. Kelgan tahrir takliflari</h2><div id="adminRequestsList"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://rvmfprmkwarpsgyobjgx.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_rZwXB8vgMguBv-lc1ytgIA_4pGFgXqr';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentUser = null, currentProfile = null, isAdmin = false;
+  let people = [], unions = [], unionChildren = [], photoUrls = {};
+  let currentFocusId = null, historyStack = [], selectedPersonId = null;
+
+  function toInternalEmail(login) {
+    const clean = login.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    return clean.includes('@') ? clean : `${clean}@shajara.uz`;
+  }
+  function showMsg(text, isErr = false) {
+    const el = document.getElementById('globalMsg');
+    el.textContent = text; el.className = 'msg' + (isErr ? ' err' : '');
+    el.classList.remove('hidden'); setTimeout(() => el.classList.add('hidden'), 4500);
+  }
+  function toggleDrawer(open) { document.getElementById('navDrawer').classList.toggle('hidden', !open); }
+  function switchAuth(mode) {
+    document.getElementById('loginForm').classList.toggle('hidden', mode !== 'login');
+    document.getElementById('signupForm').classList.toggle('hidden', mode !== 'signup');
+    document.getElementById('tabLogin').classList.toggle('active', mode === 'login');
+    document.getElementById('tabSignup').classList.toggle('active', mode === 'signup');
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const { error } = await sb.auth.signInWithPassword({
+      email: toInternalEmail(document.getElementById('loginUser').value),
+      password: document.getElementById('loginPass').value
+    });
+    if (error) return showMsg('Login yoki parol noto‘g‘ri!', true);
+    initApp();
+  }
+
+  async function handleSignup(e) {
+    e.preventDefault();
+    const loginVal = document.getElementById('regUser').value.trim();
+    if (loginVal.length < 3) return showMsg('Login kamida 3 ta belgidan iborat bo‘lsin', true);
+    const { error } = await sb.auth.signUp({
+      email: toInternalEmail(loginVal),
+      password: document.getElementById('regPass').value,
+      options: { data: { full_name: document.getElementById('regName').value.trim(), phone: loginVal, birth_year: document.getElementById('regYear').value } }
+    });
+    if (error) return showMsg('Xatolik: ' + error.message, true);
+    showMsg('Ro‘yxatdan o‘tdingiz! Admin tasdiqlashini kuting.');
+    initApp();
+  }
+
+  async function logout() { await sb.auth.signOut(); location.reload(); }
+
+  async function initApp() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      document.getElementById('authSection').classList.remove('hidden');
+      document.getElementById('statusSection').classList.add('hidden');
+      document.getElementById('appSection').classList.add('hidden');
+      document.getElementById('userHeader').classList.add('hidden');
+      return;
+    }
+    currentUser = session.user;
+    document.getElementById('authSection').classList.add('hidden');
+    document.getElementById('userHeader').classList.remove('hidden');
+
+    const { data: prof } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (!prof) return;
+    currentProfile = prof;
+    isAdmin = (prof.role === 'admin' && prof.status === 'approved');
+    document.getElementById('headerName').textContent = prof.full_name || '';
+
+    if (prof.status !== 'approved') {
+      document.getElementById('statusSection').classList.remove('hidden');
+      document.getElementById('appSection').classList.add('hidden');
+      if (prof.status === 'rejected') {
+        document.getElementById('statusTitle').textContent = '❌ Arizangiz rad etildi';
+        document.getElementById('statusDesc').textContent = 'Sabab:';
+        const rBox = document.getElementById('rejectReasonBox');
+        rBox.textContent = prof.rejection_reason || ''; rBox.classList.remove('hidden');
+      }
+      return;
+    }
+
+    document.getElementById('statusSection').classList.add('hidden');
+    document.getElementById('appSection').classList.remove('hidden');
+    if (isAdmin) {
+      document.getElementById('mAdmin').classList.remove('hidden');
+      document.getElementById('btnAddChildTop').classList.remove('hidden');
+    }
+    await loadAllData();
+  }
+
+  function goTab(name) {
+    toggleDrawer(false);
+    ['tree', 'people', 'suggest', 'admin'].forEach(t => {
+      document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== name);
+      const btn = document.getElementById('m' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (btn) btn.classList.toggle('active', t === name);
+    });
+  }
+
+  function isPlaceholderSpouse(p) {
+    if (!p) return true;
+    const n = (p.full_name || '').trim().toLowerCase();
+    return n === '' || n === "turmush o'rtog'i" || n === "turmush o‘rtog‘i";
+  }
+
+  async function loadAllData() {
+    const [pRes, uRes, cRes, mRes] = await Promise.all([
+      sb.from('people').select('*').order('birth_year', { ascending: true }),
+      sb.from('family_unions').select('*'),
+      sb.from('family_union_children').select('*').order('sort_order', { ascending: true }),
+      sb.from('person_media').select('*').eq('media_type', 'photo')
+    ]);
+    people = pRes.data || [];
+    unions = uRes.data || [];
+    unionChildren = cRes.data || [];
+
+    // Avtomatik yaratilib qolgan ortiqcha "Turmush o'rtog'i" yozuvlarini tozalash
+    // Bo'sh turmush o'rtoq yozuvlari o'chirilmaydi (o'chirilsa farzandlar bog'lanishi uzilardi) — faqat yashirin turadi
+
+    photoUrls = {};
+    for (const m of (mRes.data || [])) {
+      if (!photoUrls[m.person_id]) {
+        const { data: s } = await sb.storage.from('person-media').createSignedUrl(m.storage_path, 3600);
+        if (s?.signedUrl) photoUrls[m.person_id] = s.signedUrl;
+      }
+    }
+
+    const validPeople = people.filter(p => !isPlaceholderSpouse(p));
+    document.getElementById('peopleCount').textContent = validPeople.length;
+
+    document.getElementById('peopleDL').innerHTML = validPeople.map(p => `<option value="${esc(p.full_name)}${p.birth_year ? ' (' + p.birth_year + ')' : ''}">`).join('');
+    document.getElementById('statsLine').textContent = `Jami: ${validPeople.length} · Erkak: ${validPeople.filter(p=>p.gender!=='female').length} · Ayol: ${validPeople.filter(p=>p.gender==='female').length} · Oilalar: ${unions.length}`;
+    // Boshlang'ich katta boboni aniq topish
+    const childIds = new Set(unionChildren.map(c => c.child_id));
+    const spouseOnlyIds = new Set();
+    unions.forEach(u => {
+      if (childIds.has(u.husband_id) && !childIds.has(u.wife_id)) spouseOnlyIds.add(u.wife_id);
+      if (childIds.has(u.wife_id) && !childIds.has(u.husband_id)) spouseOnlyIds.add(u.husband_id);
+    });
+
+    if (!currentFocusId || !getPerson(currentFocusId)) {
+      const roots = validPeople.filter(p => !childIds.has(p.id) && !spouseOnlyIds.has(p.id));
+      const primaryRoot = roots.find(p => p.gender === 'male') || roots[0] || validPeople[0];
+      currentFocusId = primaryRoot ? primaryRoot.id : null;
+    }
+
+    renderFamilyTree();
+    renderPeopleList();
+    document.getElementById('reqTargetPerson').innerHTML = validPeople.map(p => `<option value="${p.id}">${esc(p.full_name)}</option>`).join('');
+    loadMyRequests();
+    if (isAdmin) loadAdminData();
+  }
+
+  function getPerson(id) { return people.find(p => p.id === id); }
+  function formatYears(p) {
+    const b = String(p.birth_year || '').trim(), d = String(p.death_year || '').trim();
+    if (!b && !d) return '';
+    const num = v => /^\d{3,4}$/.test(v);
+    if (b && !d && !num(b)) return esc(b);          // masalan: «Noma’lum», «Urush vaqtida tug‘ilgan»
+    if (!b && d && !num(d)) return esc(d);
+    return `${esc(b || '?')} — ${esc(d || 'hozir')}`;
+  }
+
+  function renderBox(p, isSelected = false, unk = false, del = false) {
+    if (!p || isPlaceholderSpouse(p)) return '';
+    const img = photoUrls[p.id] ? `<img class="avatar" src="${photoUrls[p.id]}" />` : `<div class="avatar ini">${esc((p.full_name||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase())}</div>`;
+    const yrs = formatYears(p);
+    return `
+      <div class="person-box ${p.gender === 'female' ? 'female' : 'male'} ${isSelected ? 'selected' : ''}" onclick="onBoxClick('${p.id}')">
+        ${img}
+        <div class="p-name">${esc(p.full_name)}</div>
+        ${yrs ? `<div class="p-years">${yrs}</div>` : ''}${kidBadge(p, unk)}${del && isAdmin ? `<span class="x" onclick="event.stopPropagation();deleteById('${p.id}')" title="O‘chirish">✕</span>` : ''}
+      </div>
+    `;
+  }
+
+  function renderFamilyTree() {
+    const stage = document.getElementById('treeStage');
+    const btnTop = document.getElementById('btnAddChildTop');
+    if (!currentFocusId) {
+      btnTop.textContent = '+ Katta boboni qo‘shish';
+      stage.innerHTML = `<div style="text-align:center;padding:24px 10px;">
+        <p class="muted">Hozircha shajara bo‘sh. Yuqoridagi <b>«+ Katta boboni qo‘shish»</b> tugmasini bosing.</p>
+      </div>`;
+      return;
+    }
+    btnTop.textContent = '+ Farzand qo‘shish';
+
+    const main = getPerson(currentFocusId);
+    const union = unions.find(u => u.husband_id === main.id || u.wife_id === main.id);
+    let rawSpouse = null;
+    if (union) {
+      const sId = union.husband_id === main.id ? union.wife_id : union.husband_id;
+      const candidate = getPerson(sId);
+      if (!isPlaceholderSpouse(candidate)) rawSpouse = candidate;
+    }
+
+    let leftPerson = main, rightPerson = null;
+    if (rawSpouse) {
+      if (main.gender === 'female' && rawSpouse.gender === 'male') {
+        leftPerson = rawSpouse; rightPerson = main;
+      } else {
+        leftPerson = main; rightPerson = rawSpouse;
+      }
+    }
+
+    const kidIds = union ? unionChildren.filter(c => c.family_union_id === union.id).map(c => c.child_id) : [];
+    const kids = kidIds.map(id => getPerson(id)).filter(p => p && !isPlaceholderSpouse(p));
+
+    stage.innerHTML = `
+      <div class="family-header">
+        <div class="sub">HOZIR KO‘RILAYOTGAN OILA</div>
+        <div class="title">${esc(main.full_name)}</div>
+      </div>
+
+      <div class="parents-row">
+        ${renderBox(leftPerson, selectedPersonId === leftPerson.id, kids.length === 0)}
+        ${rightPerson ? `<div class="couple-connector"></div>${renderBox(rightPerson, selectedPersonId === rightPerson.id, kids.length === 0)}` : ''}
+      </div>
+
+      ${kids.length ? `
+        <div class="v-line"></div>
+        <div class="children-wrap ${kids.length === 1 ? 'single' : ''}">
+          ${kids.map(k => `<div class="child-col">${renderBox(k, false, true)}</div>`).join('')}
+        </div>
+      ` : ''}
+    `;
+  }
+
+  function onBoxClick(id) {
+    const p = getPerson(id);
+    if (!p) return;
+    const union = unions.find(u => u.husband_id === currentFocusId || u.wife_id === currentFocusId);
+    const isTopCouple = (id === currentFocusId) || (union && (id === union.husband_id || id === union.wife_id));
+
+    if (!isTopCouple && currentFocusId) {
+      // Farzand bosildi: uning oilasiga o'tiladi, ma'lumot oynasi yopiladi
+      historyStack.push(currentFocusId);
+      currentFocusId = id;
+      hideCab();
+      renderFamilyTree();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Ota yoki ona bosildi: faqat shu holatda ma'lumotlari ochiladi
+    openCabinet(id);
+    renderFamilyTree();
+  }
+
+  function goBack() {
+    if (!historyStack.length) return showMsg('Siz eng boshlang‘ich ajdod sahifasidasiz');
+    currentFocusId = historyStack.pop();
+    hideCab();
+    renderFamilyTree();
+  }
+
+  function goRoot() {
+    historyStack = [];
+    currentFocusId = null;
+    closeCabinet();
+    loadAllData();
+  }
+
+  async function openCabinet(personId) {
+    const p = getPerson(personId);
+    if (!p) return;
+    selectedPersonId = personId;
+    document.getElementById('cabinetCard').classList.remove('hidden');
+
+    const union = unions.find(u => u.husband_id === p.id || u.wife_id === p.id);
+    const spouseId = union ? (union.husband_id === p.id ? union.wife_id : union.husband_id) : null;
+    const spouse = spouseId ? getPerson(spouseId) : null;
+
+    document.getElementById('cabName').value = p.full_name || '';
+    document.getElementById('cabGender').value = p.gender || 'male';
+    document.getElementById('cabBirth').value = p.birth_year || '';
+    document.getElementById('cabDeath').value = p.death_year || '';
+    document.getElementById('cabSpouse').value = (!isPlaceholderSpouse(spouse) ? spouse.full_name : '');
+    document.getElementById('cabBio').value = p.biography || '';
+
+    ['cabName', 'cabGender', 'cabBirth', 'cabDeath', 'cabSpouse', 'cabBio'].forEach(id => {
+      document.getElementById(id).disabled = !isAdmin;
+    });
+    document.getElementById('cabModeBadge').textContent = isAdmin ? 'Admin rejimi (tahrirlash mumkin)' : 'Faqat ko‘rish rejimi';
+    document.getElementById('adminCabActions').classList.toggle('hidden', !isAdmin);
+    document.getElementById('adminMediaUpload').classList.toggle('hidden', !isAdmin);
+
+    loadCabinetMedia(personId);
+    renderRelatives(p);
+  }
+
+  function closeCabinet() {
+    selectedPersonId = null;
+    document.getElementById('cabinetCard').classList.add('hidden');
+    renderFamilyTree();
+  }
+
+  async function saveCabinet(e) {
+    e.preventDefault();
+    if (!isAdmin || !selectedPersonId) return;
+    const p = getPerson(selectedPersonId);
+    const newGender = document.getElementById('cabGender').value;
+
+    const { error } = await sb.from('people').update({
+      full_name: document.getElementById('cabName').value.trim(),
+      gender: newGender,
+      birth_year: document.getElementById('cabBirth').value.trim() || null,
+      death_year: document.getElementById('cabDeath').value.trim() || null,
+      biography: document.getElementById('cabBio').value.trim()
+    }).eq('id', p.id);
+    if (error) return showMsg(error.message, true);
+
+    showMsg('Ma’lumotlar saqlandi!');
+    await loadAllData();
+    openCabinet(p.id);
+  }
+
+  async function quickAddChild() {
+    if (!isAdmin) return;
+    if (!currentFocusId) {
+      const rootName = prompt('Katta boboning ism-familiyasini kiriting:');
+      if (!rootName || !rootName.trim()) return;
+      const { data: rootP, error } = await sb.from('people').insert({
+        full_name: rootName.trim(), gender: 'male', created_by: currentUser.id
+      }).select().single();
+      if (error) return showMsg(error.message, true);
+      currentFocusId = rootP.id;
+      showMsg('Katta bobo qo‘shildi!');
+      await loadAllData();
+      openCabinet(rootP.id);
+      return;
+    }
+
+    const childName = prompt('Farzandning ism-familiyasini kiriting:');
+    if (!childName || !childName.trim()) return;
+    const isFemale = confirm('Jinsi AYOL bo‘lsa OK bosing, ERKAK bo‘lsa Otmena (Cancel) bosing:');
+
+    const parent = getPerson(currentFocusId);
+    let union = unions.find(u => u.husband_id === parent.id || u.wife_id === parent.id);
+
+    if (!union) {
+      const { data: sp } = await sb.from('people').insert({
+        full_name: "Turmush o'rtog'i",
+        gender: parent.gender === 'female' ? 'male' : 'female',
+        created_by: currentUser.id
+      }).select().single();
+      const { data: newU } = await sb.from('family_unions').insert({
+        husband_id: parent.gender === 'male' ? parent.id : sp.id,
+        wife_id: parent.gender === 'female' ? parent.id : sp.id
+      }).select().single();
+      union = newU;
+    }
+
+    const { data: childP, error: cErr } = await sb.from('people').insert({
+      full_name: childName.trim(), gender: isFemale ? 'female' : 'male', created_by: currentUser.id
+    }).select().single();
+    if (cErr) return showMsg(cErr.message, true);
+
+    await sb.from('family_union_children').insert({
+      family_union_id: union.id, child_id: childP.id
+    });
+
+    showMsg('Farzand qo‘shildi!');
+    await loadAllData();
+  }
+
+  async function deleteCurrentPerson() {
+    if (!isAdmin || !selectedPersonId) return;
+    if (!confirm('Haqiqatan ham bu shaxsni o‘chirmoqchimisiz?')) return;
+    const delId = selectedPersonId;
+    await sb.from('people').delete().eq('id', delId);
+    if (currentFocusId === delId) currentFocusId = historyStack.pop() || null;
+    closeCabinet();
+    showMsg('O‘chirildi!');
+    await loadAllData();
+  }
+
+  async function uploadCabinetMedia() {
+    if (!isAdmin || !selectedPersonId) return;
+    const file = document.getElementById('cabMediaFile').files[0];
+    if (!file) return showMsg('Avval rasm yoki video tanlang', true);
+    const path = `${selectedPersonId}/${Date.now()}.${file.name.split('.').pop()}`;
+    const { error: upErr } = await sb.storage.from('person-media').upload(path, file);
+    if (upErr) return showMsg('Yuklash xatosi: ' + upErr.message, true);
+
+    await sb.from('person_media').insert({
+      person_id: selectedPersonId,
+      media_type: file.type.startsWith('video') ? 'video' : 'photo',
+      storage_path: path
+    });
+    document.getElementById('cabMediaFile').value = '';
+    showMsg('Rasm/video yuklandi!');
+    await loadAllData();
+    loadCabinetMedia(selectedPersonId);
+  }
+
+  async function loadCabinetMedia(personId) {
+    const grid = document.getElementById('cabMediaGrid');
+    grid.innerHTML = 'Yuklanmoqda...';
+    const { data: list } = await sb.from('person_media').select('*').eq('person_id', personId);
+    if (!list || !list.length) { grid.innerHTML = '<span class="muted">Rasm yoki video yuklanmagan.</span>'; return; }
+    let html = '';
+    for (const item of list) {
+      const { data: s } = await sb.storage.from('person-media').createSignedUrl(item.storage_path, 3600);
+      if (s?.signedUrl) {
+        html += item.media_type === 'video' ? `<video src="${s.signedUrl}" controls></video>` : `<img src="${s.signedUrl}" onclick="window.open(this.src)" />`;
+      }
+    }
+    grid.innerHTML = html;
+  }
+
+  function renderPeopleList() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const list = people.filter(p => !isPlaceholderSpouse(p) && (p.full_name.toLowerCase().includes(q) || String(p.birth_year || '').includes(q)));
+    document.getElementById('peopleList').innerHTML = list.map(p => `
+      <div class="list-item">
+        <div><strong>${esc(p.full_name)}</strong><div class="muted">${formatYears(p)}</div></div>
+        <button class="secondary small" onclick="jumpToPerson('${p.id}')">Oilasiga o‘tish</button>
+      </div>
+    `).join('') || '<p class="muted">Hech kim topilmadi.</p>';
+  }
+
+  function jumpToPerson(id) {
+    currentFocusId = id;
+    goTab('tree');
+    hideCab();
+    renderFamilyTree();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function toggleTargetPerson() { document.getElementById('targetPersonWrap').classList.toggle('hidden', document.getElementById('reqKind').value === 'create'); }
+  async function submitEditRequest(e) {
+    e.preventDefault();
+    const kind = document.getElementById('reqKind').value;
+    const { error } = await sb.from('edit_requests').insert({
+      requested_by: currentUser.id, request_kind: kind,
+      target_person_id: kind === 'update' ? document.getElementById('reqTargetPerson').value : null,
+      proposed_data: { full_name: document.getElementById('reqFullName').value.trim(), gender: document.getElementById('reqGender').value, birth_year: document.getElementById('reqBirth').value || null, biography: document.getElementById('reqBio').value.trim() }
+    });
+    if (error) return showMsg(error.message, true);
+    showMsg('Taklif yuborildi!'); e.target.reset(); loadMyRequests();
+  }
+  async function loadMyRequests() {
+    const { data } = await sb.from('edit_requests').select('*').eq('requested_by', currentUser.id).order('created_at', { ascending: false });
+    document.getElementById('myRequestsList').innerHTML = (data || []).map(r => `<div class="list-item"><div><strong>${esc(r.proposed_data?.full_name)}</strong></div><span class="badge ${r.status}">${r.status}</span></div>`).join('') || '<p class="muted">Takliflar yo‘q.</p>';
+  }
+
+  async function loadAdminData() {
+    const { data: users } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+    document.getElementById('adminUsersList').innerHTML = (users || []).map(u => `<div class="list-item"><div><strong>${esc(u.full_name)}</strong> (${u.phone || ''}) <span class="badge ${u.status}">${u.status}</span></div>${u.role !== 'admin' ? `<div style="display:flex;gap:6px;"><button class="small" onclick="approveMember('${u.id}')">Tasdiqlash</button><button class="danger small" onclick="rejectMember('${u.id}')">Rad etish</button></div>` : '<span class="badge">Admin</span>'}</div>`).join('');
+    const { data: reqs } = await sb.from('edit_requests').select('*').eq('status', 'pending');
+    document.getElementById('adminRequestsList').innerHTML = (reqs || []).map(r => `<div class="list-item"><div><strong>${esc(r.proposed_data?.full_name)}</strong><div class="muted">${esc(r.proposed_data?.biography || '')}</div></div><div style="display:flex;gap:6px;"><button class="small" onclick="approveReq('${r.id}')">Tasdiqlash</button><button class="danger small" onclick="rejectReq('${r.id}')">Rad etish</button></div></div>`).join('') || '<p class="muted">Kutilayotgan takliflar yo‘q.</p>';
+  }
+  async function approveMember(uid) { await sb.rpc('approve_member', { p_user_id: uid }); showMsg('Tasdiqlandi!'); loadAdminData(); }
+  async function rejectMember(uid) { const r = prompt('Sabab:'); if (r) { await sb.rpc('reject_member', { p_user_id: uid, p_reason: r }); loadAdminData(); } }
+  async function approveReq(rid) { await sb.rpc('approve_edit_request', { p_request_id: rid }); showMsg('Qo‘llandi!'); loadAllData(); }
+  async function rejectReq(rid) { const r = prompt('Sabab:'); if (r) { await sb.rpc('reject_edit_request', { p_request_id: rid, p_reason: r }); loadAdminData(); } }
+
+  function downloadBackup() {
+    const blob = new Blob([JSON.stringify({ people, unions, unionChildren }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'shajara_zaxira.json'; a.click();
+  }
+
+
+  function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function kidBadge(p, unk){
+    const u=unions.find(x=>x.husband_id===p.id||x.wife_id===p.id);
+    const n=u?unionChildren.filter(c=>c.family_union_id===u.id).length:0;
+    if(!n) return unk?'<div class="kid-badge unk" title="Keyingi avlod kiritilmagan">?</div>':'';
+    return n?`<div class="kid-badge">${n} farzand</div>`:'';
+  }
+  function goUp(){
+    const uc=unionChildren.find(c=>c.child_id===currentFocusId);
+    const u=uc&&unions.find(x=>x.id===uc.family_union_id);
+    if(!u) return showMsg('Bu eng yuqori avlod — ota-onasi kiritilmagan');
+    historyStack.push(currentFocusId);
+    currentFocusId=!isPlaceholderSpouse(getPerson(u.husband_id))?u.husband_id:u.wife_id;
+    hideCab(); renderFamilyTree();
+  }
+  function hideCab(){ selectedPersonId=null; document.getElementById('cabinetCard').classList.add('hidden'); }
+  function treeSearchGo(el){
+    const v=el.value.trim();
+    const p=people.find(x=>!isPlaceholderSpouse(x)&&(()=>{const t=x.full_name+(x.birth_year?' ('+x.birth_year+')':'');return t===v||lat2cyr(t)===v;})());
+    if(p){ el.value=''; jumpToPerson(p.id); }
+  }
+  function renderRelatives(p){
+    const chip=(q,l)=>`<button type="button" class="chip" onclick="jumpToPerson('${q.id}')">${l}: ${esc(q.full_name)}</button>`;
+    const ok=q=>q&&!isPlaceholderSpouse(q);
+    let h='';
+    const pc=unionChildren.find(c=>c.child_id===p.id);
+    const pu=pc&&unions.find(x=>x.id===pc.family_union_id);
+    if(pu) [pu.husband_id,pu.wife_id].map(getPerson).filter(ok).forEach(q=>h+=chip(q,q.gender==='female'?'Ona':'Ota'));
+    const u=unions.find(x=>x.husband_id===p.id||x.wife_id===p.id);
+    if(u){
+      const sp=getPerson(u.husband_id===p.id?u.wife_id:u.husband_id);
+      if(ok(sp)) h+=chip(sp,'Turmush o‘rtog‘i');
+      unionChildren.filter(c=>c.family_union_id===u.id).map(c=>getPerson(c.child_id)).filter(ok).forEach(q=>h+=chip(q,'Farzand'));
+    }
+    document.getElementById('cabRelatives').innerHTML=h;
+  }
+  function askPerson(title, g='male'){
+    return new Promise(res=>{
+      const m=document.getElementById('personModal'), $=i=>document.getElementById(i);
+      $('pmTitle').textContent=title; $('pmName').value=''; $('pmBirth').value=''; $('pmGender').value=g;
+      m.classList.remove('hidden'); $('pmName').focus();
+      const done=v=>{m.classList.add('hidden');res(v);};
+      $('pmOk').onclick=()=>{const n=$('pmName').value.trim(); if(!n) return $('pmName').focus(); done({name:n,gender:$('pmGender').value,birth:$('pmBirth').value||null});};
+      $('pmCancel').onclick=()=>done(null);
+    });
+  }
+  // Prompt/confirm oynalari o'rniga qulay forma
+  async function quickAddChild(){
+    if(!isAdmin) return;
+    const root=!currentFocusId;
+    const d=await askPerson(root?'Katta boboni qo‘shish':'Farzand qo‘shish');
+    if(!d) return;
+    const mk=()=>({full_name:d.name,gender:d.gender,birth_year:d.birth,created_by:currentUser.id});
+    if(root){
+      const {data:r,error}=await sb.from('people').insert(mk()).select().single();
+      if(error) return showMsg(error.message,true);
+      currentFocusId=r.id; showMsg('Qo‘shildi!'); await loadAllData(); openCabinet(r.id); return;
+    }
+    const parent=getPerson(currentFocusId);
+    let union=unions.find(u=>u.husband_id===parent.id||u.wife_id===parent.id);
+    if(!union){
+      const {data:sp}=await sb.from('people').insert({full_name:"Turmush o'rtog'i",gender:parent.gender==='female'?'male':'female',created_by:currentUser.id}).select().single();
+      const {data:nu,error:ue}=await sb.from('family_unions').insert({husband_id:parent.gender==='male'?parent.id:sp.id,wife_id:parent.gender==='female'?parent.id:sp.id}).select().single();
+      if(ue||!nu) return showMsg('Oila yaratilmadi: '+(ue?.message||''),true);
+      union=nu;
+    }
+    const {data:c,error:ce}=await sb.from('people').insert(mk()).select().single();
+    if(ce) return showMsg(ce.message,true);
+    const {error:le}=await sb.from('family_union_children').insert({family_union_id:union.id,child_id:c.id});
+    if(le) return showMsg('Farzand bog‘lanmadi: '+le.message,true);
+    showMsg('Farzand qo‘shildi!'); await loadAllData();
+  }
+  function downloadGedcom(){
+    toggleDrawer(false);
+    const x=id=>String(id).replace(/-/g,''), ok=p=>p&&!isPlaceholderSpouse(p);
+    const L=['0 HEAD','1 CHAR UTF-8','1 GEDC','2 VERS 5.5.1'];
+    people.filter(ok).forEach(p=>{
+      L.push(`0 @I${x(p.id)}@ INDI`,`1 NAME ${p.full_name}`,`1 SEX ${p.gender==='female'?'F':'M'}`);
+      if(p.birth_year) L.push('1 BIRT','2 DATE '+(/^\d{3,4}$/.test(String(p.birth_year).trim())?p.birth_year:'('+p.birth_year+')'));
+      if(p.death_year) L.push('1 DEAT','2 DATE '+(/^\d{3,4}$/.test(String(p.death_year).trim())?p.death_year:'('+p.death_year+')'));
+    });
+    unions.filter(u=>ok(getPerson(u.husband_id))&&ok(getPerson(u.wife_id))).forEach(u=>{
+      L.push(`0 @F${x(u.id)}@ FAM`,`1 HUSB @I${x(u.husband_id)}@`,`1 WIFE @I${x(u.wife_id)}@`);
+      unionChildren.filter(c=>c.family_union_id===u.id&&ok(getPerson(c.child_id))).forEach(c=>L.push(`1 CHIL @I${x(c.child_id)}@`));
+    });
+    L.push('0 TRLR');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/plain'})); a.download='shajara.ged'; a.click();
+  }
+
+  function renderFamilyTree(){
+    const stage=document.getElementById('treeStage'), btnTop=document.getElementById('btnAddChildTop');
+    if(!currentFocusId){
+      btnTop.textContent='+ Katta boboni qo‘shish';
+      stage.innerHTML=`<div style="text-align:center;padding:24px 10px;"><p class="muted">Hozircha shajara bo‘sh.</p>${isAdmin?'<button onclick="quickAddChild()">＋ Katta bobo qo‘shish</button>':''}</div>`;
+      return;
+    }
+    btnTop.textContent='+ Farzand qo‘shish';
+    const main=getPerson(currentFocusId);
+    const union=unions.find(u=>u.husband_id===main.id||u.wife_id===main.id);
+    let sp=null;
+    if(union){const c=getPerson(union.husband_id===main.id?union.wife_id:union.husband_id); if(!isPlaceholderSpouse(c)) sp=c;}
+    const kids=(union?unionChildren.filter(c=>c.family_union_id===union.id):[]).map(c=>getPerson(c.child_id)).filter(p=>p&&!isPlaceholderSpouse(p));
+    const noKids=kids.length===0;
+    let left=renderBox(main,selectedPersonId===main.id,noKids), right='';
+    if(sp){
+      const [l,r]=(main.gender==='female'&&sp.gender==='male')?[sp,main]:[main,sp];
+      left=renderBox(l,selectedPersonId===l.id,noKids); right=renderBox(r,selectedPersonId===r.id,noKids);
+    }
+    const kidsHtml=(kids.length||isAdmin)?`<div class="children">${kids.map(k=>`<div class="branch">${renderBox(k,false,true,true)}</div>`).join('')}${isAdmin?'<div class="branch"><div class="person-box add" onclick="quickAddChild()">＋ Farzand</div></div>':''}</div>`:'';
+    stage.innerHTML=`<div class="family-header"><div class="sub">HOZIR KO‘RILAYOTGAN OILA</div><div class="title">${esc(main.full_name)}</div></div>
+      <div class="tree-scroll"><div class="trunk">
+        <div class="parents-row">${left}${right?`<div class="couple-connector"></div>${right}`:''}</div>
+        ${kidsHtml}
+      </div></div>`;
+  }
+  async function addSpouse(){
+    if(!isAdmin) return;
+    const p=getPerson(currentFocusId); if(!p) return;
+    const opp=p.gender==='female'?'male':'female';
+    const d=await askPerson('Turmush o‘rtog‘ini qo‘shish',opp); if(!d) return;
+    const union=unions.find(u=>u.husband_id===p.id||u.wife_id===p.id);
+    const row={full_name:d.name,gender:opp,birth_year:d.birth};
+    if(union){
+      const {error}=await sb.from('people').update(row).eq('id',union.husband_id===p.id?union.wife_id:union.husband_id);
+      if(error) return showMsg(error.message,true);
+    } else {
+      const {data:sp,error}=await sb.from('people').insert({...row,created_by:currentUser.id}).select().single();
+      if(error) return showMsg(error.message,true);
+      const {error:ue}=await sb.from('family_unions').insert({husband_id:p.gender==='male'?p.id:sp.id,wife_id:p.gender==='male'?sp.id:p.id});
+      if(ue) return showMsg('Bog‘lanmadi: '+ue.message,true);
+    }
+    showMsg('Qo‘shildi!'); await loadAllData();
+  }
+  async function deleteById(id){
+    if(!isAdmin) return;
+    const p=getPerson(id); if(!p) return;
+    const ids=[];
+    const walk=pid=>{ids.push(pid); unions.filter(u=>u.husband_id===pid||u.wife_id===pid).forEach(u=>{ids.push(u.husband_id===pid?u.wife_id:u.husband_id); unionChildren.filter(c=>c.family_union_id===u.id).forEach(c=>walk(c.child_id));});};
+    walk(id);
+    const all=[...new Set(ids)];
+    const more=all.filter(x=>!isPlaceholderSpouse(getPerson(x))).length-1;
+    if(!confirm(`«${p.full_name}»${more>0?' va unga bog‘liq '+more+' kishi':''} o‘chiriladi. Davom etasizmi?`)) return;
+    await sb.from('family_union_children').delete().in('child_id',all);
+    const {error}=await sb.from('people').delete().in('id',all);
+    if(error) return showMsg(error.message,true);
+    if(all.includes(currentFocusId)) currentFocusId=historyStack.pop()||null;
+    hideCab(); showMsg('O‘chirildi'); await loadAllData();
+  }
+
+  const MONTHS=['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
+  function tgFeed(items){
+    let last='', h='';
+    items.forEach(it=>{
+      const d=new Date(it.at), day=d.getDate()+'-'+MONTHS[d.getMonth()]+' '+d.getFullYear();
+      if(day!==last){ h+=`<div class="tg-day"><span>${day}</span></div>`; last=day; }
+      const tm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+      h+=`<div class="tg-msg"><div style="display:flex;justify-content:space-between;gap:8px"><strong>${it.title}</strong><span class="badge ${it.status}">${it.status}</span></div>${it.body||''}
+        <div class="meta"><span>${it.n>1?it.n+'-murojaat':'1-murojaat'}</span><span>${tm}</span></div>
+        ${it.status==='pending'?`<div class="acts">${it.acts}</div>`:''}</div>`;
+    });
+    return h;
+  }
+  function numberBy(rows,key){ const c={}; return rows.map(r=>{const k=key(r); c[k]=(c[k]||0)+1; return c[k];}); }
+  async function loadAdminData() {
+    const { data: users } = await sb.from('profiles').select('*').order('created_at',{ascending:true});
+    const us=(users||[]).filter(u=>u.role!=='admin');
+    const un=numberBy(us,u=>u.phone||u.full_name);
+    document.getElementById('adminUsersList').innerHTML=tgFeed(us.map((u,i)=>({
+      at:u.created_at,title:esc(u.full_name),status:u.status,n:un[i],
+      body:`<div class="muted">${esc(u.phone||'')}</div>`,
+      acts:`<button class="small" onclick="this.parentNode.remove();approveMember('${u.id}')">Tasdiqlash</button><button class="danger small" onclick="rejectMember('${u.id}')">Rad etish</button>`
+    })))||'<p class="muted">Murojaatlar yo‘q.</p>';
+    const { data: reqs } = await sb.from('edit_requests').select('*').order('created_at',{ascending:true});
+    const rn=numberBy(reqs||[],r=>r.requested_by);
+    document.getElementById('adminRequestsList').innerHTML=tgFeed((reqs||[]).map((r,i)=>({
+      at:r.created_at,title:esc(r.proposed_data?.full_name),status:r.status,n:rn[i],
+      body:`<div class="muted">${esc(r.proposed_data?.biography||'')}</div>`,
+      acts:`<button class="small" onclick="this.parentNode.remove();approveReq('${r.id}')">Tasdiqlash</button><button class="danger small" onclick="rejectReq('${r.id}')">Rad etish</button>`
+    })))||'<p class="muted">Takliflar yo‘q.</p>';
+  }
+  async function clearAdminHistory(){
+    if(!confirm('Ko‘rib chiqilgan (tasdiqlangan/rad etilgan) murojaatlar tarixi o‘chiriladi. Kutayotganlari qoladi. Davom etasizmi?')) return;
+    const a=await sb.from('edit_requests').delete().neq('status','pending');
+    const b=await sb.from('profiles').delete().eq('status','rejected');
+    const err=a.error||b.error;
+    showMsg(err?('Tozalashda xato: '+err.message):'Tarix tozalandi',!!err);
+    loadAdminData();
+  }
+
+  // ===== Bosh sahifaga qaytish (yashil sarlavha) =====
+  function goHome(){
+    if(document.getElementById('appSection').classList.contains('hidden')) return;
+    toggleDrawer(false);
+    goTab('tree');
+    historyStack=[]; currentFocusId=null; hideCab();
+    loadAllData();
+  }
+
+  // ===== Turmush o'rtog'ini tanlash / kiritish =====
+  const PH_NAME="Turmush o'rtog'i";
+  const otherOf=(u,x)=>getPerson(u.husband_id===x.id?u.wife_id:u.husband_id);
+  const spLabel=q=>q.full_name+(q.birth_year?' ('+q.birth_year+')':'');
+  function spCands(p){
+    const opp=p.gender==='female'?'male':'female';
+    return people.filter(q=>q.id!==p.id&&!isPlaceholderSpouse(q))
+      .sort((a,b)=>(a.gender===opp?0:1)-(b.gender===opp?0:1)||a.full_name.localeCompare(b.full_name));
+  }
+  function openSpouseModal(){
+    if(!isAdmin||!selectedPersonId) return;
+    const p=getPerson(selectedPersonId); if(!p) return;
+    const m=document.getElementById('spouseModal'), $=i=>document.getElementById(i);
+    const cands=spCands(p);
+    $('spouseDL').innerHTML=cands.map(q=>`<option value="${esc(spLabel(q))}">`).join('');
+    $('spPick').value=''; $('spName').value='';
+    const u=unions.find(x=>x.husband_id===p.id||x.wife_id===p.id);
+    const cur=u?otherOf(u,p):null;
+    $('spRemove').classList.toggle('hidden',!(cur&&!isPlaceholderSpouse(cur)));
+    m.classList.remove('hidden');
+    const done=()=>m.classList.add('hidden');
+    const finish=async()=>{ done(); await loadAllData(); openCabinet(p.id); };
+    $('spCancel').onclick=done;
+    $('spRemove').onclick=async()=>{ if(!confirm('Turmush o‘rtog‘i olib tashlansinmi?')) return; if(await removeSpouse(p)) { showMsg('Olib tashlandi'); } await finish(); };
+    $('spOk').onclick=async()=>{
+      const v=$('spPick').value.trim(), nm=$('spName').value.trim();
+      if(v){
+        const q=cands.find(x=>spLabel(x)===v||lat2cyr(spLabel(x))===v);
+        if(!q) return showMsg('Ro‘yxatdan qarindosh tanlang yoki pastga yangi ism kiriting',true);
+        if(await linkSpouse(p,q)) showMsg('Bog‘landi: '+q.full_name);
+      } else if(nm){
+        if(await setSpouseName(p,nm)) showMsg('Saqlandi');
+      } else return showMsg('Qarindosh tanlang yoki ism kiriting',true);
+      await finish();
+    };
+  }
+  async function dbErr(r){ if(r&&r.error){ showMsg('Xatolik: '+r.error.message,true); return true; } return false; }
+  async function setSpouseName(p,name){
+    const u=unions.find(x=>x.husband_id===p.id||x.wife_id===p.id);
+    if(u){
+      const cur=otherOf(u,p);
+      if(!isPlaceholderSpouse(cur)){ showMsg('Avval joriy turmush o‘rtog‘ini «Olib tashlash» qiling (kiritilgan ma’lumot o‘zgarmaydi)',true); return false; }
+      return !(await dbErr(await sb.from('people').update({full_name:name}).eq('id',cur.id)));
+    }
+    const sG=p.gender==='female'?'male':'female';
+    const r=await sb.from('people').insert({full_name:name,gender:sG,created_by:currentUser.id}).select().single();
+    if(await dbErr(r)) return false;
+    return !(await dbErr(await sb.from('family_unions').insert({
+      husband_id:p.gender==='male'?p.id:r.data.id, wife_id:p.gender==='male'?r.data.id:p.id })));
+  }
+  async function dropIfOrphan(x){
+    if(!x||!isPlaceholderSpouse(x)) return; // kiritilgan haqiqiy ma'lumotlar hech qachon o'chirilmaydi
+    const isKid=unionChildren.some(c=>c.child_id===x.id);
+    const inUnion=unions.some(u=>u.husband_id===x.id||u.wife_id===x.id);
+    if(!isKid&&!inUnion) await sb.from('people').delete().eq('id',x.id);
+  }
+  async function linkSpouse(p,q){
+    const uP=unions.find(u=>u.husband_id===p.id||u.wife_id===p.id);
+    const uQ=unions.find(u=>u.husband_id===q.id||u.wife_id===q.id);
+    if(uP&&uQ&&uP.id===uQ.id){ showMsg('Allaqachon turmush o‘rtog‘i',true); return false; }
+    const xQ=uQ?otherOf(uQ,q):null;
+    if(uQ&&!isPlaceholderSpouse(xQ)){ showMsg(q.full_name+' allaqachon boshqa kishi bilan oilada',true); return false; }
+    if(uP){
+      const oldS=otherOf(uP,p);
+      if(uQ){
+        if(await dbErr(await sb.from('family_union_children').update({family_union_id:uP.id}).eq('family_union_id',uQ.id))) return false;
+      }
+      const slot=uP.husband_id===p.id?'wife_id':'husband_id';
+      if(await dbErr(await sb.from('family_unions').update({[slot]:q.id}).eq('id',uP.id))) return false;
+      if(uQ){
+        await sb.from('family_unions').delete().eq('id',uQ.id);
+        if(xQ) await sb.from('people').delete().eq('id',xQ.id);
+      }
+      if(oldS&&oldS.id!==q.id){
+        unions=unions.filter(u=>u.id!==uP.id&&(!uQ||u.id!==uQ.id));
+        await dropIfOrphan(oldS);
+      }
+      return true;
+    }
+    if(uQ){
+      const slot=uQ.husband_id===q.id?'wife_id':'husband_id';
+      if(await dbErr(await sb.from('family_unions').update({[slot]:p.id}).eq('id',uQ.id))) return false;
+      if(xQ) await sb.from('people').delete().eq('id',xQ.id);
+      return true;
+    }
+    const pm=p.gender==='male'||q.gender!=='male';
+    return !(await dbErr(await sb.from('family_unions').insert({husband_id:pm?p.id:q.id,wife_id:pm?q.id:p.id})));
+  }
+  async function removeSpouse(p){
+    const u=unions.find(x=>x.husband_id===p.id||x.wife_id===p.id); if(!u) return false;
+    const s=otherOf(u,p);
+    const kids=unionChildren.filter(c=>c.family_union_id===u.id);
+    if(!kids.length){
+      if(await dbErr(await sb.from('family_unions').delete().eq('id',u.id))) return false;
+      unions=unions.filter(x=>x.id!==u.id);
+      await dropIfOrphan(s);
+      return true;
+    }
+    // Farzandlari bor: bo'sh joy egasi (yashirin) qo'yiladi, qarindosh ma'lumotlari o'zgarmaydi
+    const r=await sb.from('people').insert({full_name:PH_NAME,gender:s?s.gender:(p.gender==='female'?'male':'female'),created_by:currentUser.id}).select().single();
+    if(await dbErr(r)) return false;
+    const slot=u.husband_id===p.id?'wife_id':'husband_id';
+    return !(await dbErr(await sb.from('family_unions').update({[slot]:r.data.id}).eq('id',u.id)));
+  }
+
+  // ===== Lotin / Kirill =====
+  let script='lat';
+  const A="[ʻʼ‘’'`]", MAPC={a:'а',b:'б',d:'д',e:'е',f:'ф',g:'г',h:'ҳ',i:'и',j:'ж',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'қ',r:'р',s:'с',t:'т',u:'у',v:'в',w:'в',x:'х',y:'й',z:'з',c:'к'};
+  const DI={sh:'ш',ch:'ч',yo:'ё',yu:'ю',ya:'я',ye:'е'};
+  const RXC=new RegExp(`o${A}|g${A}|sh|ch|yo|yu|ya|ye|${A}|[a-z]`,'gi');
+  function cs(m,c){
+    const a=m[0]; if(a===a.toLowerCase()) return c;
+    if(m.length>1&&/[a-z]/i.test(m[1])&&m[1]===m[1].toLowerCase()) return c[0].toUpperCase()+c.slice(1);
+    return c.toUpperCase();
+  }
+  function lat2cyr(t){
+    return String(t).split(/(GEDCOM)/).map((part,i)=>i%2?part:part.replace(RXC,(m,off,str)=>{
+      const l=m.toLowerCase(); let c;
+      if(l.length===2&&l[0]==='o'&&new RegExp('^'+A).test(l[1])) c='ў';
+      else if(l.length===2&&l[0]==='g'&&new RegExp('^'+A).test(l[1])) c='ғ';
+      else if(DI[l]) c=DI[l];
+      else if(new RegExp('^'+A+'$').test(l)){ if(/[a-z]/i.test(str[off-1]||'')&&/[a-z]/i.test(str[off+1]||'')) c='ъ'; else return m; }
+      else if(l==='e') c=/[a-z]/i.test(str[off-1]||'')?'е':'э';
+      else c=MAPC[l];
+      return cs(m,c);
+    })).join('');
+  }
+  const origT=new WeakMap(), prodT=new WeakMap();
+  function ct(n){
+    const cur=n.nodeValue; if(cur!==prodT.get(n)) origT.set(n,cur);
+    const v=script==='cyr'?lat2cyr(origT.get(n)):origT.get(n);
+    prodT.set(n,v); if(cur!==v) n.nodeValue=v;
+  }
+  function cvAttr(el,a){
+    if(!el.hasAttribute(a)) return;
+    const k='o'+a; if(!(k in el.dataset)||el.getAttribute(a)!==el.dataset['p'+a]) el.dataset[k]=el.getAttribute(a);
+    const v=script==='cyr'?lat2cyr(el.dataset[k]):el.dataset[k]; el.dataset['p'+a]=v; el.setAttribute(a,v);
+  }
+  function walkC(n){
+    if(n.nodeType===3){ if(n.parentNode&&!/^(SCRIPT|STYLE|TEXTAREA)$/.test(n.parentNode.nodeName)) ct(n); }
+    else if(n.nodeType===1&&!/^(SCRIPT|STYLE|TEXTAREA)$/.test(n.nodeName)){
+      cvAttr(n,'placeholder'); cvAttr(n,'title');
+      if(n.nodeName==='OPTION'&&n.parentNode&&n.parentNode.nodeName==='DATALIST') cvAttr(n,'value');
+      n.childNodes.forEach(walkC);
+    }
+  }
+  const obsC=new MutationObserver(ms=>{
+    if(script!=='cyr') return;
+    obsC.disconnect();
+    ms.forEach(m=>{ if(m.type==='characterData') ct(m.target); else m.addedNodes.forEach(walkC); });
+    obsC.observe(document.body,{childList:true,subtree:true,characterData:true});
+  });
+  function setScript(x){
+    script=x;
+    try{localStorage.setItem('shajaraScript',x);}catch(e){}
+    obsC.disconnect(); walkC(document.body);
+    obsC.observe(document.body,{childList:true,subtree:true,characterData:true});
+    document.getElementById('scLat').className=x==='lat'?'':'secondary';
+    document.getElementById('scCyr').className=x==='cyr'?'':'secondary';
+    document.getElementById('scCyr').style.flex=document.getElementById('scLat').style.flex='1';
+  }
+  ['confirm','prompt','alert'].forEach(f=>{const o=window[f].bind(window); window[f]=(m,...r)=>o(script==='cyr'?lat2cyr(m):m,...r);});
+
+  initApp();
+  try{ setScript(localStorage.getItem('shajaraScript')==='cyr'?'cyr':'lat'); }catch(e){ setScript('lat'); }
+</script>
+<div id="spouseModal" class="modal-bg hidden"><div class="modal">
+  <h3>Turmush o‘rtog‘i</h3>
+  <label>Qarindoshlardan tanlash</label>
+  <input list="spouseDL" id="spPick" autocomplete="off" /><datalist id="spouseDL"></datalist>
+  <label>Yoki yangi ism kiriting</label>
+  <input id="spName" />
+  <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+    <button id="spOk" style="flex:1">Saqlash</button>
+    <button id="spRemove" class="danger">Olib tashlash</button>
+    <button id="spCancel" class="secondary">Bekor</button>
+  </div>
+</div></div>
+<div id="personModal" class="modal-bg hidden"><div class="modal">
+  <h3 id="pmTitle"></h3>
+  <label>Ism-familiyasi *</label><input id="pmName" />
+  <div class="row"><div><label>Jinsi</label><select id="pmGender"><option value="male">Erkak</option><option value="female">Ayol</option></select></div>
+  <div><label>Tug‘ilgan yili</label><input type="text" id="pmBirth" /></div></div>
+  <div style="display:flex;gap:8px;margin-top:16px"><button id="pmOk" style="flex:1">Qo‘shish</button><button id="pmCancel" class="secondary">Bekor</button></div>
+</div></div>
+</body>
+</html>
